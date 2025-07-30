@@ -4,6 +4,7 @@ import logging
 import os
 import uuid
 import json
+import time
 
 from pytubefix import YouTube
 
@@ -58,8 +59,10 @@ class Cache:
             MetricsHandler.cache_size.set(len(self.video_id_to_path))
             MetricsHandler.cache_size_bytes.set(self.current_size_bytes)
         video_file_name = video.default_filename
+        start_time = time.time()
         with MetricsHandler.download_time.time():
             video.download(self.file_path)
+        end_time = time.time()
         MetricsHandler.data_downloaded.inc(video.filesize)
         MetricsHandler.video_download_count.inc()
         video_id = self.get_video_id(url)
@@ -80,6 +83,9 @@ class Cache:
         self.current_size_bytes += video_info.size_bytes
         MetricsHandler.cache_size.set(len(self.video_id_to_path))
         MetricsHandler.cache_size_bytes.set(self.current_size_bytes)
+        #download rate are currently listed in bytes / second
+        download_rate = (video.filesize /  (end_time-start_time)) 
+        MetricsHandler.download_rate.observe(download_rate)
 
     def find(self, video_id: str):
         if video_id in self.video_id_to_path:
